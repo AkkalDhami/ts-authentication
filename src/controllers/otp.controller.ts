@@ -33,7 +33,7 @@ export const sendOtp = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         "Invalid data received",
-        z.flattenError(error).fieldErrors,
+        z.flattenError(error).fieldErrors
       );
     }
 
@@ -51,24 +51,26 @@ export const sendOtp = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         `Your account has been locked. Please try again after ${Math.ceil(
-          (user.lockUntil.getTime() - Date.now()) / (1000 * 60),
-        )} minutes.`,
+          (user.lockUntil.getTime() - Date.now()) / (1000 * 60)
+        )} minutes.`
+      );
+    }
+
+    const existingOtp = await Otp.findOne({ email, otpType }).sort({
+      createdAt: -1,
+    });
+    if (existingOtp && new Date(existingOtp.nextResendAllowedAt) > new Date()) {
+      const remainingSec = Math.ceil(
+        (existingOtp.nextResendAllowedAt.getTime() - Date.now()) / 1000
+      );
+      return ApiResponse.BadRequest(
+        res,
+        `Please wait for ${remainingSec} seconds before sending another OTP`
       );
     }
 
     const otp = generateOtp(OTP_CODE_LENGTH, OTP_CODE_EXPIRY);
     logger.info(`Generated OTP:  ${otp.code}`);
-
-    const existingOtp = await Otp.findOne({ email });
-    if (existingOtp && new Date(existingOtp.nextResendAllowedAt) > new Date()) {
-      const remainingSec = Math.ceil(
-        (existingOtp.nextResendAllowedAt.getTime() - Date.now()) / 1000,
-      );
-      return ApiResponse.BadRequest(
-        res,
-        `Please wait for ${remainingSec} seconds before sending another OTP`,
-      );
-    }
 
     const nextResendAllowedAt = new Date(Date.now() + NEXT_OTP_DELAY);
 
@@ -101,7 +103,7 @@ export const sendOtp = AsyncHandler(
     }
 
     return ApiResponse.Success(res, "OTP sent successfully");
-  },
+  }
 );
 
 //? VERIFY OTP
@@ -113,7 +115,7 @@ export const verifyOtp = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         "Invalid data received",
-        z.flattenError(error).fieldErrors,
+        z.flattenError(error).fieldErrors
       );
     }
 
@@ -131,8 +133,8 @@ export const verifyOtp = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         `Your account has been locked. Please try again after ${Math.ceil(
-          (user.lockUntil.getTime() - Date.now()) / (1000 * 60),
-        )} minutes.`,
+          (user.lockUntil.getTime() - Date.now()) / (1000 * 60)
+        )} minutes.`
       );
     }
 
@@ -140,7 +142,7 @@ export const verifyOtp = AsyncHandler(
       email,
       isVerified: false,
       expiresAt: { $gt: new Date() },
-    });
+    }).sort({ createdAt: -1 });
     if (!existingOtp) {
       return ApiResponse.NotFound(res, "Invalid or expired OTP");
     }
@@ -185,23 +187,23 @@ export const verifyOtp = AsyncHandler(
 
       await User.updateOne(
         { _id: user._id },
-        { $set: { lastLogin: new Date(), failedLoginAttempts: 0 } },
+        { $set: { lastLogin: new Date(), failedLoginAttempts: 0 } }
       );
 
       await User.updateOne({ _id: user._id }, { $unset: { lockUntil: 1 } });
 
       return ApiResponse.Success(
         res,
-        "OTP verified and user logged in successfully",
+        "OTP verified and user logged in successfully"
       );
     }
 
     if (existingOtp.otpType === "password-reset") {
       const { hashedToken: hashedResetPasswordToken } = generateRandomToken(
-        user._id.toString(),
+        user._id.toString()
       );
       const resetPasswordExpiry = new Date(
-        Date.now() + RESET_PASSWORD_TOKEN_EXPIRY,
+        Date.now() + RESET_PASSWORD_TOKEN_EXPIRY
       );
 
       if (
@@ -215,17 +217,17 @@ export const verifyOtp = AsyncHandler(
       res.cookie(
         "hashedResetPasswordToken",
         hashedResetPasswordToken,
-        COOKIE_OPTIONS,
+        COOKIE_OPTIONS
       );
       res.cookie(
         "resetPasswordExpiry",
         resetPasswordExpiry.toISOString(),
-        COOKIE_OPTIONS,
+        COOKIE_OPTIONS
       );
 
       return ApiResponse.Success(res, "OTP verified successfully");
     }
 
     return ApiResponse.Success(res, "OTP verified successfully");
-  },
+  }
 );
