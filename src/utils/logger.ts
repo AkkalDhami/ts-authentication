@@ -23,7 +23,7 @@ if (env.NODE_ENV !== "production") {
   );
 }
 
-if (env.NODE_ENV === "development") {
+if (env.NODE_ENV !== "development") {
   transports.push(
     new DailyRotateFile({
       dirname: "logs",

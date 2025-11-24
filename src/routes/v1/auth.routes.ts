@@ -35,12 +35,7 @@ router.post("/signin", signinLimiter, signinUser);
 router.post("/request-otp", otpRequestLimiter, sendOtp);
 router.post("/verify-otp", otpVerificationLimiter, verifyOtp);
 
-router.post(
-  "/reset-password",
-  isAuthenticated,
-  resetPasswordLimiter,
-  resetPassword
-);
+router.post("/reset-password", resetPasswordLimiter, resetPassword);
 router.post(
   "/change-password",
   isAuthenticated,
