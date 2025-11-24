@@ -48,7 +48,7 @@ export const signupUser = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         "Invalid data received!",
-        z.flattenError(error).fieldErrors,
+        z.flattenError(error).fieldErrors
       );
     }
 
@@ -56,7 +56,7 @@ export const signupUser = AsyncHandler(
     if (!name || !email || !password) {
       return ApiResponse.BadRequest(
         res,
-        "Name, email and password are required",
+        "Name, email and password are required"
       );
     }
 
@@ -85,7 +85,7 @@ export const signupUser = AsyncHandler(
       email: newUser.email,
       role: newUser.role,
     });
-  },
+  }
 );
 
 //? SIGNIN USER
@@ -97,7 +97,7 @@ export const signinUser = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         "Invalid data received!",
-        z.flattenError(error).fieldErrors,
+        z.flattenError(error).fieldErrors
       );
     }
 
@@ -115,8 +115,8 @@ export const signinUser = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         `Your account has been locked. Please try again after ${Math.ceil(
-          (user.lockUntil.getTime() - Date.now()) / (1000 * 60),
-        )} minutes.`,
+          (user.lockUntil.getTime() - Date.now()) / (1000 * 60)
+        )} minutes.`
       );
     }
 
@@ -137,14 +137,14 @@ export const signinUser = AsyncHandler(
 
       await User.updateOne(
         { _id: user._id },
-        { $set: { failedLoginAttempts: newAttempts, lockUntil } },
+        { $set: { failedLoginAttempts: newAttempts, lockUntil } }
       );
       return ApiResponse.BadRequest(res, "Invalid credentials!");
     }
 
     await User.updateOne(
       { _id: user._id },
-      { $set: { failedLoginAttempts: 0, lockUntil: null } },
+      { $set: { failedLoginAttempts: 0, lockUntil: null } }
     );
 
     const otp = generateOtp(OTP_CODE_LENGTH, OTP_CODE_EXPIRY);
@@ -153,11 +153,11 @@ export const signinUser = AsyncHandler(
     const existingOtp = await Otp.findOne({ email });
     if (existingOtp && new Date(existingOtp.nextResendAllowedAt) > new Date()) {
       const remainingSec = Math.ceil(
-        (existingOtp.nextResendAllowedAt.getTime() - Date.now()) / 1000,
+        (existingOtp.nextResendAllowedAt.getTime() - Date.now()) / 1000
       );
       return ApiResponse.BadRequest(
         res,
-        `Please wait for ${remainingSec} seconds before sending another OTP`,
+        `Please wait for ${remainingSec} seconds before sending another OTP`
       );
     }
 
@@ -187,7 +187,7 @@ export const signinUser = AsyncHandler(
     // await sendEmail(email, `OTP for email verification`, html);
 
     return ApiResponse.Ok(res, `OTP sent to ${email}`);
-  },
+  }
 );
 
 //? GOOGLE SIGNIN
@@ -199,7 +199,7 @@ export const googleSignin = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         "Invalid data received!",
-        z.flattenError(error).fieldErrors,
+        z.flattenError(error).fieldErrors
       );
     }
 
@@ -234,7 +234,7 @@ export const googleSignin = AsyncHandler(
         lockUntil: newUser.lockUntil,
       });
     }
-  },
+  }
 );
 
 //? GET USER PROFILE
@@ -256,8 +256,8 @@ export const getUserProfile = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         `Your account has been locked. Please try again after ${Math.ceil(
-          (user.lockUntil.getTime() - Date.now()) / (1000 * 60),
-        )} minutes.`,
+          (user.lockUntil.getTime() - Date.now()) / (1000 * 60)
+        )} minutes.`
       );
     }
 
@@ -269,7 +269,7 @@ export const getUserProfile = AsyncHandler(
       lastLoginAt: user.lastLoginAt,
       lockUntil: user.lockUntil,
     });
-  },
+  }
 );
 
 //? REFRESH TOKENS
@@ -293,7 +293,7 @@ export const refreshToken = AsyncHandler(
       if (decoded._id !== userId) {
         return ApiResponse.Unauthorized(
           res,
-          "Unauthorized, Please login first.",
+          "Unauthorized, Please login first."
         );
       }
     }
@@ -302,7 +302,7 @@ export const refreshToken = AsyncHandler(
     const newRefreshToken = generateRefreshToken(userId);
     setAuthCookies(res, newAccessToken, newRefreshToken);
     return ApiResponse.Success(res, "Tokens refreshed successfully!");
-  },
+  }
 );
 
 //? RESET PASSWORD
@@ -314,13 +314,17 @@ export const resetPassword = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         "Invalid data received",
-        z.flattenError(error).fieldErrors,
+        z.flattenError(error).fieldErrors
       );
     }
 
-    const { newPassword } = data;
+    const { newPassword, email } = data;
+    if (!email) {
+      return ApiResponse.BadRequest(res, "Email is required!");
+    }
 
     const hashedResetPasswordToken = req.cookies?.hashedResetPasswordToken;
+
     const resetPasswordExpiry = req.cookies?.resetPasswordExpiry;
 
     if (!hashedResetPasswordToken) {
@@ -330,26 +334,22 @@ export const resetPassword = AsyncHandler(
     if (!resetPasswordExpiry || new Date(resetPasswordExpiry) < new Date()) {
       return ApiResponse.BadRequest(
         res,
-        "Reset password token expired. Please try again.",
+        "Reset password token expired. Please try again."
       );
     }
 
-    const user = await User.findById(req?.user?._id).select("+password");
+    const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
       return ApiResponse.NotFound(res, "User not found");
-    }
-
-    if (user?.isDeleted || user?.deletedAt) {
-      return ApiResponse.BadRequest(res, "Your account has been deactivated.");
     }
 
     if (user.lockUntil && new Date(user.lockUntil) > new Date()) {
       return ApiResponse.BadRequest(
         res,
         `Your account has been locked. Please try again after ${Math.ceil(
-          (user.lockUntil.getTime() - Date.now()) / (1000 * 60),
-        )} minutes.`,
+          (user.lockUntil.getTime() - Date.now()) / (1000 * 60)
+        )} minutes.`
       );
     }
 
@@ -367,7 +367,7 @@ export const resetPassword = AsyncHandler(
 
     const isOldPassword = await verifyPassword(
       newPassword,
-      oldPassword as string,
+      oldPassword as string
     );
 
     if (isOldPassword) {
@@ -382,7 +382,7 @@ export const resetPassword = AsyncHandler(
     res.clearCookie("hashedResetPasswordToken");
     res.clearCookie("resetPasswordExpiry");
     return ApiResponse.Ok(res, "Password reset successfully!");
-  },
+  }
 );
 
 //? CHANGE PASSWORD
@@ -394,7 +394,7 @@ export const changePassword = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         "Invalid data received",
-        z.flattenError(error).fieldErrors,
+        z.flattenError(error).fieldErrors
       );
     }
 
@@ -403,7 +403,7 @@ export const changePassword = AsyncHandler(
     if (!oldPassword || !newPassword) {
       return ApiResponse.BadRequest(
         res,
-        "Old password and new password are required",
+        "Old password and new password are required"
       );
     }
     const user = await User.findById(req?.user?._id).select("+password");
@@ -420,8 +420,8 @@ export const changePassword = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         `Your account has been locked. Please try again after ${Math.ceil(
-          (user.lockUntil.getTime() - Date.now()) / (1000 * 60),
-        )} minutes.`,
+          (user.lockUntil.getTime() - Date.now()) / (1000 * 60)
+        )} minutes.`
       );
     }
 
@@ -440,7 +440,7 @@ export const changePassword = AsyncHandler(
     user.password = hashedNewPassword;
     await user.save();
     return ApiResponse.Ok(res, "Password changed successfully!");
-  },
+  }
 );
 
 //? LOGOUT
@@ -460,15 +460,15 @@ export const logout = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         `Your account has been locked. Please try again after ${Math.ceil(
-          (user.lockUntil.getTime() - Date.now()) / (1000 * 60),
-        )} minutes.`,
+          (user.lockUntil.getTime() - Date.now()) / (1000 * 60)
+        )} minutes.`
       );
     }
 
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
     return ApiResponse.Success(res, "Logged out successfully!");
-  },
+  }
 );
 
 //? UPDATE PROFILE
@@ -480,7 +480,7 @@ export const updateProfile = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         "Invalid data received",
-        z.flattenError(error).fieldErrors,
+        z.flattenError(error).fieldErrors
       );
     }
 
@@ -500,8 +500,8 @@ export const updateProfile = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         `Your account has been locked. Please try again after ${Math.ceil(
-          (user.lockUntil.getTime() - Date.now()) / (1000 * 60),
-        )} minutes.`,
+          (user.lockUntil.getTime() - Date.now()) / (1000 * 60)
+        )} minutes.`
       );
     }
 
@@ -534,7 +534,7 @@ export const updateProfile = AsyncHandler(
     await user.save();
 
     return ApiResponse.Success(res, "Profile updated successfully!");
-  },
+  }
 );
 
 //? DELETE/DEACTIVATE ACCOUNT
@@ -546,7 +546,7 @@ export const deleteAccount = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         "Invalid data received",
-        z.flattenError(error).fieldErrors,
+        z.flattenError(error).fieldErrors
       );
     }
 
@@ -555,7 +555,7 @@ export const deleteAccount = AsyncHandler(
     if (userId !== req?.user?._id) {
       return ApiResponse.BadRequest(
         res,
-        "You are not authorized to delete this account.",
+        "You are not authorized to delete this account."
       );
     }
 
@@ -567,7 +567,7 @@ export const deleteAccount = AsyncHandler(
     if (user?.isDeleted || user?.deletedAt) {
       return ApiResponse.BadRequest(
         res,
-        "Your account has already been deactivated.",
+        "Your account has already been deactivated."
       );
     }
 
@@ -575,8 +575,8 @@ export const deleteAccount = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         `Your account has been locked. Please try again after ${Math.ceil(
-          (user.lockUntil.getTime() - Date.now()) / (1000 * 60),
-        )} minutes.`,
+          (user.lockUntil.getTime() - Date.now()) / (1000 * 60)
+        )} minutes.`
       );
     }
 
@@ -588,7 +588,7 @@ export const deleteAccount = AsyncHandler(
       user.isDeleted = true;
       user.deletedAt = new Date();
       user.reActivateAvailableAt = new Date(
-        Date.now() + REACTIVATION_AVAILABLE_AT,
+        Date.now() + REACTIVATION_AVAILABLE_AT
       );
       await user.save();
     } else if (type === "hard") {
@@ -601,9 +601,9 @@ export const deleteAccount = AsyncHandler(
 
     return ApiResponse.Success(
       res,
-      `Account ${type === "soft" ? "deactivated" : "deleted"} successfully!`,
+      `Account ${type === "soft" ? "deactivated" : "deleted"} successfully!`
     );
-  },
+  }
 );
 
 //? REACTIVATE ACCOUNT
@@ -618,8 +618,8 @@ export const reactivateAccount = AsyncHandler(
       return ApiResponse.BadRequest(
         res,
         `Your account has been locked. Please try again after ${Math.ceil(
-          (user.lockUntil.getTime() - Date.now()) / (1000 * 60),
-        )} minutes.`,
+          (user.lockUntil.getTime() - Date.now()) / (1000 * 60)
+        )} minutes.`
       );
     }
 
@@ -639,8 +639,8 @@ export const reactivateAccount = AsyncHandler(
         res,
         `You can reactivate your account after ${Math.ceil(
           (user?.reActivateAvailableAt.getTime() - Date.now()) /
-            (1000 * 60 * 60 * 24),
-        )} days.`,
+            (1000 * 60 * 60 * 24)
+        )} days.`
       );
     }
 
@@ -649,11 +649,11 @@ export const reactivateAccount = AsyncHandler(
       await user.save();
       await User.findOneAndUpdate(
         { _id: req?.user?._id },
-        { $unset: { reActivateAvailableAt: "", deletedAt: "" } },
+        { $unset: { reActivateAvailableAt: "", deletedAt: "" } }
       );
       return ApiResponse.Success(res, "Account reactivated successfully!");
     }
 
     return ApiResponse.BadRequest(res, "Your account is already active.");
-  },
+  }
 );

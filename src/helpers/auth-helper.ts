@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import argon2 from "argon2";
 
 export const hashPassword = async (password: string) => argon2.hash(password);
@@ -43,4 +43,13 @@ export const generateRandomToken = (id: string) => {
     .digest("hex");
 
   return { token, hashedToken };
+};
+
+export const generateHashedToken = (token: string) => {
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(String(token))
+    .digest("hex");
+
+  return hashedToken;
 };

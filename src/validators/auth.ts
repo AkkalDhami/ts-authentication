@@ -58,9 +58,7 @@ export const SignupSchema = z
 
 export const RequestOtpSchema = z.object({
   email: emailSchema,
-  otpType: z
-    .enum(OTP_TYPES, { error: "Invalid otp type" })
-    .default("email-verification"),
+  otpType: z.enum(OTP_TYPES, { error: "Invalid otp type" }),
 });
 
 export const VerifyOtpSchema = z.object({
@@ -71,6 +69,7 @@ export const VerifyOtpSchema = z.object({
 
 export const ResetPasswordSchema = z
   .object({
+    email: emailSchema,
     newPassword: passwordSchema,
     confirmNewPassword: passwordSchema,
   })
