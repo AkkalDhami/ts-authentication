@@ -11,6 +11,7 @@ const envSchema = z.object({
 
   JWT_REFRESH_SECRET: z.string(),
   JWT_ACCESS_SECRET: z.string(),
+  COOKIE_SECRET: z.string(),
 
   SMTP_HOST: z.string(),
   SMTP_PORT: z.string(),
