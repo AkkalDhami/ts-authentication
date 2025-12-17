@@ -1,3 +1,5 @@
+import { env } from "#configs/env.js";
+import googleClient from "#configs/oauth.js";
 import {
   LOCK_TIME_MS,
   LOGIN_MAX_ATTEMPTS,
@@ -412,23 +414,6 @@ export const changePassword = AsyncHandler(
       return ApiResponse.NotFound(res, "User not found");
     }
 
-    if (user?.isDeleted || user?.deletedAt) {
-      return ApiResponse.BadRequest(res, "Your account has been deactivated.");
-    }
-
-    if (user.lockUntil && new Date(user.lockUntil) > new Date()) {
-      return ApiResponse.BadRequest(
-        res,
-        `Your account has been locked. Please try again after ${Math.ceil(
-          (user.lockUntil.getTime() - Date.now()) / (1000 * 60)
-        )} minutes.`
-      );
-    }
-
-    if (user?.isEmailVerified === false) {
-      return ApiResponse.BadRequest(res, "Please verify your email first");
-    }
-
     const isOldPassword = await verifyPassword(newPassword, user.password);
 
     if (isOldPassword) {
@@ -452,19 +437,6 @@ export const logout = AsyncHandler(
       return ApiResponse.NotFound(res, "User not found");
     }
 
-    if (user?.isDeleted || user?.deletedAt) {
-      return ApiResponse.BadRequest(res, "Your account has been deactivated.");
-    }
-
-    if (user.lockUntil && new Date(user.lockUntil) > new Date()) {
-      return ApiResponse.BadRequest(
-        res,
-        `Your account has been locked. Please try again after ${Math.ceil(
-          (user.lockUntil.getTime() - Date.now()) / (1000 * 60)
-        )} minutes.`
-      );
-    }
-
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
     return ApiResponse.Success(res, "Logged out successfully!");
@@ -484,29 +456,12 @@ export const updateProfile = AsyncHandler(
       );
     }
 
-    const { name, role } = data;
+    const { name } = data;
 
     const user = await User.findById(req?.user?._id);
 
     if (!user) {
       return ApiResponse.NotFound(res, "User not found");
-    }
-
-    if (user?.isDeleted || user?.deletedAt) {
-      return ApiResponse.BadRequest(res, "Your account has been deactivated.");
-    }
-
-    if (user.lockUntil && new Date(user.lockUntil) > new Date()) {
-      return ApiResponse.BadRequest(
-        res,
-        `Your account has been locked. Please try again after ${Math.ceil(
-          (user.lockUntil.getTime() - Date.now()) / (1000 * 60)
-        )} minutes.`
-      );
-    }
-
-    if (user?.isEmailVerified === false) {
-      return ApiResponse.BadRequest(res, "Please verify your email first");
     }
 
     if (req?.file && user?.avatar?.public_id) {
@@ -525,10 +480,6 @@ export const updateProfile = AsyncHandler(
 
     if (name) {
       user.name = name;
-    }
-
-    if (role) {
-      user.role = role;
     }
 
     await user.save();
@@ -562,26 +513,6 @@ export const deleteAccount = AsyncHandler(
     const user = await User.findById(req?.user?._id);
     if (!user) {
       return ApiResponse.NotFound(res, "User not found");
-    }
-
-    if (user?.isDeleted || user?.deletedAt) {
-      return ApiResponse.BadRequest(
-        res,
-        "Your account has already been deactivated."
-      );
-    }
-
-    if (user.lockUntil && new Date(user.lockUntil) > new Date()) {
-      return ApiResponse.BadRequest(
-        res,
-        `Your account has been locked. Please try again after ${Math.ceil(
-          (user.lockUntil.getTime() - Date.now()) / (1000 * 60)
-        )} minutes.`
-      );
-    }
-
-    if (user?.isEmailVerified === false) {
-      return ApiResponse.BadRequest(res, "Please verify your email first");
     }
 
     if (type === "soft") {
@@ -655,5 +586,86 @@ export const reactivateAccount = AsyncHandler(
     }
 
     return ApiResponse.BadRequest(res, "Your account is already active.");
+  }
+);
+
+//? GET GOOLGE CONSENT SCREEN
+export const getGoogleAuthConsentScreen = AsyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const url = googleClient.generateAuthUrl({
+      access_type: "offline",
+      prompt: "consent",
+      scope: ["openid", "email", "profile"],
+      redirect_uri: env.GOOGLE_REDIRECT_URI,
+    });
+
+    return res.redirect(url);
+  }
+);
+
+//? GOOGLE AUTH CALLBACK HANDLER
+export const googleAuthCallbackHandler = AsyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const code = req.query.code as string | undefined;
+    if (!code) {
+      return ApiResponse.BadRequest(res, "Missing google code in the callback");
+    }
+
+    const { tokens } = await googleClient.getToken(code);
+    console.log({ tokens });
+
+    if (!tokens.id_token) {
+      return ApiResponse.BadRequest(res, "Google IdToken is required!");
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: env.GOOGLE_CLIENT_ID,
+      maxExpiry: 600,
+    });
+
+    const payload = ticket.getPayload();
+    console.log({ payload });
+    const email = payload?.email;
+    const isEmailVerified = payload?.email_verified;
+
+    if (!email || !isEmailVerified) {
+      return ApiResponse.BadRequest(res, "Please verify your google email!");
+    }
+
+    const user = await User.findOne({ email });
+
+    if (user) {
+      if (!user.isEmailVerified) {
+        await User.findOneAndUpdate(
+          {
+            email: email,
+          },
+          {
+            $set: { isEmailVerified: true },
+          }
+        );
+      }
+
+      return ApiResponse.Ok(res, "User signed in successfully!");
+    } else {
+      const newUser = new User({
+        name: payload.name,
+        email,
+        isEmailVerified,
+        provider: "google",
+        providerId: payload?.sub,
+        avatar: { url: payload.picture },
+      });
+      await newUser.save();
+      return ApiResponse.Success(res, "User signed in successfully!", {
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        isEmailVerified: newUser.isEmailVerified,
+        lastLoginAt: newUser.lastLoginAt,
+        lockUntil: newUser.lockUntil,
+      });
+    }
   }
 );
