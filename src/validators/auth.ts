@@ -103,7 +103,6 @@ export const ChangePasswordSchema = z
 
 export const UpdateProfileSchema = z.object({
   name: nameSchema,
-  role: roleSchema,
   avatar: z.string().optional(),
 });
 
