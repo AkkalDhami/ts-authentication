@@ -10,6 +10,7 @@ import "./cron-jobs/otp-cleaner";
 import { swaggerSpec } from "./docs/swagger";
 
 import Routes from "#routes/index.js";
+import { googleAuthCallbackHandler } from "#controllers/auth.controller.js";
 
 const app: Application = express();
 
@@ -21,12 +22,13 @@ app.use(morgan(process.env.NODE_ENV === "development" ? "dev" : "combined"));
 
 //*  Routes
 app.use("/api", Routes);
+app.get("/auth/google/callback", googleAuthCallbackHandler);
 
 app.get("/", (req, res) => {
   return ApiResponse.Ok(res, "Welcome to the API");
 });
 
-app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
+app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(swaggerSpec));
 
 app.use(errorHandler);
 
