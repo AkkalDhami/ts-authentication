@@ -6,7 +6,6 @@ import swaggerUI from "swagger-ui-express";
 
 import { errorHandler } from "#middlewares/error-handler.js";
 import { ApiResponse } from "#utils/api-response.js";
-import "./cron-jobs/otp-cleaner";
 import { swaggerSpec } from "./docs/swagger";
 
 import Routes from "#routes/index.js";
