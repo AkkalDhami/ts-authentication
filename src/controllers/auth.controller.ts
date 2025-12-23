@@ -54,7 +54,7 @@ export const signupUser = AsyncHandler(
       );
     }
 
-    const { name, email, password } = data;
+    const { name, email, password, role } = data;
     if (!name || !email || !password) {
       return ApiResponse.BadRequest(
         res,
@@ -74,6 +74,7 @@ export const signupUser = AsyncHandler(
       name,
       email,
       password: hashedPassword,
+      role,
     });
 
     if (!newUser) {
@@ -111,19 +112,6 @@ export const signinUser = AsyncHandler(
     const user = await User.findOne({ email }).select("+password");
     if (!user) {
       return ApiResponse.BadRequest(res, "Invalid credentials!");
-    }
-
-    if (user.lockUntil && new Date(user.lockUntil) > new Date()) {
-      return ApiResponse.BadRequest(
-        res,
-        `Your account has been locked. Please try again after ${Math.ceil(
-          (user.lockUntil.getTime() - Date.now()) / (1000 * 60)
-        )} minutes.`
-      );
-    }
-
-    if (user?.isDeleted || user?.deletedAt) {
-      return ApiResponse.BadRequest(res, "Your account has been deactivated.");
     }
 
     const isPasswordValid = await verifyPassword(password, user.password);
