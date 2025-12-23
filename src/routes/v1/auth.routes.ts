@@ -33,7 +33,7 @@ const router = Router();
 router.get("/profile", isAuthenticated, getUserProfile);
 
 router.post("/signup", signupLimiter, signupUser);
-router.post("/signin", signinLimiter, signinUser);
+router.post("/signin", signinLimiter, checkEmailRestriction, signinUser);
 
 router.post("/request-otp", otpRequestLimiter, sendOtp);
 router.post("/verify-otp", otpVerificationLimiter, verifyOtp);
