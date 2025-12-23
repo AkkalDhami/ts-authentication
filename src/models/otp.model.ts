@@ -1,10 +1,14 @@
 import mongoose, { Document, Schema, Model } from "mongoose";
-import { OTP_CODE_EXPIRY, OTP_TYPES } from "#constants/auth-constants.js";
+import {
+  OTP_CODE_EXPIRY,
+  OTP_TYPES,
+  otpTypes,
+} from "#constants/auth-constants.js";
 
 export interface IOtp extends Document {
   _id: mongoose.Types.ObjectId;
   email: string;
-  otpType: (typeof OTP_TYPES)[number];
+  otpType: otpTypes;
   otpHashCode: string;
   nextResendAllowedAt: Date;
   attempts: number;
@@ -24,7 +28,7 @@ const otpSchema: Schema<IOtp> = new Schema(
     },
     otpType: {
       type: String,
-      enum: ["email-verification", "password-reset", "password-change"],
+      enum: OTP_TYPES,
       required: true,
     },
     otpHashCode: {
@@ -54,7 +58,10 @@ const otpSchema: Schema<IOtp> = new Schema(
   }
 );
 
-otpSchema.index({ createdAt: 1 }, { expireAfterSeconds: OTP_CODE_EXPIRY });
+otpSchema.index(
+  { createdAt: 1 },
+  { expireAfterSeconds: OTP_CODE_EXPIRY / 1000 }
+);
 
 const Otp: Model<IOtp> =
   mongoose.models.Otp || mongoose.model<IOtp>("Otp", otpSchema);
