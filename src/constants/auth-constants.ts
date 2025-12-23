@@ -26,6 +26,8 @@ export const EMAIL_VERIFY_OTP_CODE_EXPIRY =
 export const OTP_CODE_EXPIRY = 5 * SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND;
 
 export const OTP_TYPES = [
+  "signin",
+  "signup",
   "email-verification",
   "password-reset",
   "password-change",
@@ -54,3 +56,5 @@ export const REACTIVATION_AVAILABLE_AT =
   MINUTES_PER_HOUR *
   SECONDS_PER_MINUTE *
   MILLISECONDS_PER_SECOND;
+
+export type otpTypes = (typeof OTP_TYPES)[number];
